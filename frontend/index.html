@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>SecureSphere v2</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+</head>
+
+<body>
+
+<!-- AUTH -->
+
+<div class="auth-container">
+
+    <div class="auth-box">
+
+        <h1>SecureSphere</h1>
+
+        <input
+            type="text"
+            id="username"
+            placeholder="Username"
+        >
+
+        <input
+            type="password"
+            id="password"
+            placeholder="Password"
+        >
+
+        <button onclick="signup()">
+            Signup
+        </button>
+
+        <button onclick="login()">
+            Login
+        </button>
+
+    </div>
+
+</div>
+
+<!-- APP -->
+
+<div
+    class="app"
+    id="app"
+    style="display:none;"
+>
+
+    <!-- NAV -->
+
+    <div class="nav-bar">
+
+        <button onclick="showSection('groups')">
+            👥
+        </button>
+
+        <button onclick="showSection('dms')">
+            💬
+        </button>
+
+        <button onclick="showSection('profile')">
+            👤
+        </button>
+
+    </div>
+
+    <!-- SIDEBAR -->
+
+    <div class="sidebar">
+
+        <!-- GROUPS -->
+
+        <div
+            class="section"
+            id="groupsSection"
+        >
+
+            <div class="section-header">
+
+                <h2>Groups</h2>
+
+                <button onclick="createGroup()">
+                    +
+                </button>
+
+            </div>
+
+            <div id="groupsList"></div>
+
+        </div>
+
+        <!-- DMS -->
+
+        <div
+            class="section"
+            id="dmsSection"
+            style="display:none;"
+        >
+
+            <div class="section-header">
+
+                <h2>Friends</h2>
+
+            </div>
+
+            <!-- ADD FRIEND -->
+
+            <div class="friend-add">
+
+                <input
+                    type="text"
+                    id="friendIdInput"
+                    placeholder="Enter User ID"
+                >
+
+                <button onclick="sendFriendRequest()">
+                    Add
+                </button>
+
+            </div>
+
+            <!-- FRIEND REQUESTS -->
+
+            <div class="request-section">
+
+                <h3>Friend Requests</h3>
+
+                <div id="requestsList"></div>
+
+            </div>
+
+            <!-- FRIENDS -->
+
+            <div class="request-section">
+
+                <h3>Friends</h3>
+
+                <div id="friendsList"></div>
+
+            </div>
+
+        </div>
+
+        <!-- PROFILE -->
+
+        <div
+            class="section"
+            id="profileSection"
+            style="display:none;"
+        >
+
+            <div class="profile-card">
+
+                <div
+                    class="avatar"
+                    id="profileAvatar"
+                >
+                    U
+                </div>
+
+                <h2 id="profileName"></h2>
+
+                <p id="profileId"></p>
+
+                <textarea
+                    id="bioInput"
+                    placeholder="Write bio..."
+                ></textarea>
+
+                <button onclick="saveBio()">
+                    Save Bio
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CHAT -->
+
+    <div class="chat-container">
+
+        <div class="chat-topbar">
+
+            <h3 id="chatTitle">
+                SecureSphere v2
+            </h3>
+
+        </div>
+
+        <div
+            class="messages"
+            id="messages"
+        ></div>
+
+        <div class="input-area">
+
+            <input
+                type="file"
+                id="fileInput"
+                hidden
+            >
+
+            <button
+                class="action-btn"
+                onclick="chooseFile()"
+            >
+                📎
+            </button>
+
+            <button
+                class="action-btn"
+                id="recordBtn"
+                onclick="toggleRecording()"
+            >
+                🎤
+            </button>
+
+            <input
+                type="text"
+                id="messageInput"
+                placeholder="Type message..."
+            >
+
+            <button
+                class="send-btn"
+                id="sendBtn"
+            >
+                Send
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- PROFILE MODAL -->
+
+<div
+    class="profile-modal"
+    id="profileModal"
+    style="display:none;"
+>
+
+    <div class="profile-popup">
+
+        <div
+            class="avatar large-avatar"
+            id="modalAvatar"
+        >
+            U
+        </div>
+
+        <h2 id="modalName"></h2>
+
+        <p id="modalUserId"></p>
+
+        <button onclick="startDM()">
+            DM
+        </button>
+
+        <button onclick="blockUser()">
+            Block
+        </button>
+
+        <button onclick="restrictUser()">
+            Restrict
+        </button>
+
+        <button onclick="closeProfileModal()">
+            Close
+        </button>
+
+    </div>
+
+</div>
+
+<!-- MOBILE NAV -->
+
+<div class="mobile-nav">
+
+    <button onclick="showSection('groups')">
+        👥
+    </button>
+
+    <button onclick="showSection('dms')">
+        💬
+    </button>
+
+    <button onclick="showSection('profile')">
+        👤
+    </button>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
