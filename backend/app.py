@@ -65,6 +65,26 @@ with app.app_context():
     db.create_all()
 
 # =========================
+# FRONTEND ROUTES
+# =========================
+
+@app.route("/")
+def home():
+
+    return send_from_directory(
+        "../frontend",
+        "index.html"
+    )
+
+@app.route("/<path:path>")
+def frontend_files(path):
+
+    return send_from_directory(
+        "../frontend",
+        path
+    )
+
+# =========================
 # ONLINE USERS
 # =========================
 
