@@ -62,7 +62,7 @@ class FriendRequest(db.Model):
     )
 
 # =========================
-# FRIENDS
+# FRIEND
 # =========================
 
 class Friend(db.Model):
@@ -98,7 +98,7 @@ class Group(db.Model):
         nullable=False
     )
 
-    group_image = db.Column(
+    group_picture = db.Column(
         db.String(500),
         default=""
     )
@@ -176,7 +176,7 @@ class Message(db.Model):
     )
 
 # =========================
-# REACTIONS
+# REACTION
 # =========================
 
 class Reaction(db.Model):
@@ -191,6 +191,12 @@ class Reaction(db.Model):
         nullable=False
     )
 
+    username = db.Column(
+        db.String(100),
+        nullable=False
+    )
+
     emoji = db.Column(
-        db.String(10)
+        db.String(10),
+        nullable=False
     )

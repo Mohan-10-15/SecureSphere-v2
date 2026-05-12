@@ -1,24 +1,38 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    send_from_directory
+)
+
 from flask_cors import CORS
+
+from flask_socketio import (
+    SocketIO,
+    emit
+)
+
 from flask_bcrypt import Bcrypt
-from flask_socketio import SocketIO, emit
+
 from werkzeug.utils import secure_filename
 
 from models import *
 
 import os
 
+# =========================
+# APP
+# =========================
+
 app = Flask(__name__)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///users.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config[
+    "SQLALCHEMY_DATABASE_URI"
+] = "sqlite:///users.db"
 
-UPLOAD_FOLDER = "uploads"
-
-os.makedirs(
-    UPLOAD_FOLDER,
-    exist_ok=True
-)
+app.config[
+    "SQLALCHEMY_TRACK_MODIFICATIONS"
+] = False
 
 db.init_app(app)
 
@@ -31,42 +45,67 @@ socketio = SocketIO(
     cors_allowed_origins="*"
 )
 
+# =========================
+# UPLOADS
+# =========================
+
+UPLOAD_FOLDER = "uploads"
+
+os.makedirs(
+    UPLOAD_FOLDER,
+    exist_ok=True
+)
+
+# =========================
+# DB INIT
+# =========================
+
 with app.app_context():
+
     db.create_all()
 
 # =========================
 # ONLINE USERS
 # =========================
 
-online_users = set()
+online_users = {}
 
 # =========================
 # SIGNUP
 # =========================
 
-@app.route("/signup", methods=["POST"])
+@app.route(
+    "/signup",
+    methods=["POST"]
+)
 def signup():
 
     data = request.json
 
-    existing_user = User.query.filter_by(
+    existing = User.query.filter_by(
         username=data["username"]
     ).first()
 
-    if existing_user:
+    if existing:
 
         return jsonify({
+
             "success": False,
-            "message": "Username already exists"
+
+            "message":
+                "Username already exists"
         })
 
-    hashed_password = bcrypt.generate_password_hash(
+    hashed = bcrypt.generate_password_hash(
         data["password"]
     ).decode("utf-8")
 
     user = User(
+
         username=data["username"],
-        password=hashed_password,
+
+        password=hashed,
+
         user_id=data["userId"]
     )
 
@@ -75,15 +114,21 @@ def signup():
     db.session.commit()
 
     return jsonify({
+
         "success": True,
-        "message": "Signup successful"
+
+        "message":
+            "Signup successful"
     })
 
 # =========================
 # LOGIN
 # =========================
 
-@app.route("/login", methods=["POST"])
+@app.route(
+    "/login",
+    methods=["POST"]
+)
 def login():
 
     data = request.json
@@ -92,60 +137,59 @@ def login():
         username=data["username"]
     ).first()
 
-    if user and bcrypt.check_password_hash(
-        user.password,
-        data["password"]
-    ):
+    if not user:
 
         return jsonify({
-            "success": True,
-            "userId": user.user_id,
-            "bio": user.bio,
-            "profilePicture": user.profile_picture
+            "success": False
+        })
+
+    valid = bcrypt.check_password_hash(
+        user.password,
+        data["password"]
+    )
+
+    if not valid:
+
+        return jsonify({
+            "success": False
         })
 
     return jsonify({
-        "success": False
-    })
 
-# =========================
-# UPDATE PROFILE
-# =========================
+        "success": True,
 
-@app.route("/update_profile", methods=["POST"])
-def update_profile():
+        "userId":
+            user.user_id,
 
-    data = request.json
+        "bio":
+            user.bio,
 
-    user = User.query.filter_by(
-        username=data["username"]
-    ).first()
-
-    if user:
-
-        user.bio = data["bio"]
-
-        if "profilePicture" in data:
-
-            user.profile_picture = data["profilePicture"]
-
-        db.session.commit()
-
-    return jsonify({
-        "success": True
+        "profilePicture":
+            user.profile_picture
     })
 
 # =========================
 # FRIEND REQUEST
 # =========================
 
-@app.route("/send_request", methods=["POST"])
+@app.route(
+    "/send_request",
+    methods=["POST"]
+)
 def send_request():
 
     data = request.json
 
+    if data["senderId"] == data["receiverId"]:
+
+        return jsonify({
+            "success": False
+        })
+
     existing = FriendRequest.query.filter_by(
+
         sender_id=data["senderId"],
+
         receiver_id=data["receiverId"]
     ).first()
 
@@ -155,12 +199,16 @@ def send_request():
             "success": False
         })
 
-    req = FriendRequest(
+    new_request = FriendRequest(
+
         sender_id=data["senderId"],
+
         receiver_id=data["receiverId"]
     )
 
-    db.session.add(req)
+    db.session.add(
+        new_request
+    )
 
     db.session.commit()
 
@@ -173,17 +221,19 @@ def send_request():
     })
 
 # =========================
-# GET REQUESTS
+# REQUESTS
 # =========================
 
-@app.route("/requests/<user_id>")
-def requests(user_id):
+@app.route(
+    "/requests/<user_id>"
+)
+def get_requests(user_id):
 
     requests = FriendRequest.query.filter_by(
         receiver_id=user_id
     ).all()
 
-    data = []
+    response = []
 
     for req in requests:
 
@@ -191,31 +241,44 @@ def requests(user_id):
             user_id=req.sender_id
         ).first()
 
-        data.append({
-            "senderId": req.sender_id,
-            "username": user.username
-        })
+        if user:
 
-    return jsonify(data)
+            response.append({
+
+                "senderId":
+                    req.sender_id,
+
+                "username":
+                    user.username
+            })
+
+    return jsonify(response)
 
 # =========================
-# ACCEPT FRIEND
+# ACCEPT REQUEST
 # =========================
 
-@app.route("/accept_request", methods=["POST"])
+@app.route(
+    "/accept_request",
+    methods=["POST"]
+)
 def accept_request():
 
     data = request.json
 
     friend = Friend(
+
         user1=data["senderId"],
+
         user2=data["receiverId"]
     )
 
     db.session.add(friend)
 
     FriendRequest.query.filter_by(
+
         sender_id=data["senderId"],
+
         receiver_id=data["receiverId"]
     ).delete()
 
@@ -233,8 +296,10 @@ def accept_request():
 # FRIENDS
 # =========================
 
-@app.route("/friends/<user_id>")
-def friends(user_id):
+@app.route(
+    "/friends/<user_id>"
+)
+def get_friends(user_id):
 
     friends = Friend.query.filter(
         (
@@ -245,13 +310,16 @@ def friends(user_id):
         )
     ).all()
 
-    data = []
+    response = []
 
     for friend in friends:
 
         other_id = (
+
             friend.user1
+
             if friend.user2 == user_id
+
             else friend.user2
         )
 
@@ -259,26 +327,45 @@ def friends(user_id):
             user_id=other_id
         ).first()
 
-        data.append({
-            "username": user.username,
-            "userId": user.user_id,
-            "bio": user.bio,
-            "profilePicture": user.profile_picture
-        })
+        if user:
 
-    return jsonify(data)
+            response.append({
+
+                "username":
+                    user.username,
+
+                "userId":
+                    user.user_id,
+
+                "bio":
+                    user.bio,
+
+                "profilePicture":
+                    user.profile_picture
+            })
+
+    return jsonify(response)
 
 # =========================
 # CREATE GROUP
 # =========================
 
-@app.route("/create_group", methods=["POST"])
+@app.route(
+    "/create_group",
+    methods=["POST"]
+)
 def create_group():
 
     data = request.json
 
     group = Group(
-        group_name=data["groupName"]
+
+        group_name=data["groupName"],
+
+        group_picture=data.get(
+            "groupPicture",
+            ""
+        )
     )
 
     db.session.add(group)
@@ -286,8 +373,11 @@ def create_group():
     db.session.commit()
 
     member = GroupMember(
+
         group_id=group.id,
+
         user_id=data["creatorId"],
+
         role="admin"
     )
 
@@ -300,22 +390,27 @@ def create_group():
     )
 
     return jsonify({
+
         "success": True,
-        "groupId": group.id
+
+        "groupId":
+            group.id
     })
 
 # =========================
-# GROUPS
+# GET GROUPS
 # =========================
 
-@app.route("/groups/<user_id>")
-def groups(user_id):
+@app.route(
+    "/groups/<user_id>"
+)
+def get_groups(user_id):
 
     memberships = GroupMember.query.filter_by(
         user_id=user_id
     ).all()
 
-    data = []
+    response = []
 
     for member in memberships:
 
@@ -323,20 +418,90 @@ def groups(user_id):
             id=member.group_id
         ).first()
 
-        data.append({
-            "groupId": group.id,
-            "groupName": group.group_name,
-            "groupImage": group.group_image,
-            "role": member.role
-        })
+        if group:
 
-    return jsonify(data)
+            response.append({
+
+                "groupId":
+                    group.id,
+
+                "groupName":
+                    group.group_name,
+
+                "groupPicture":
+                    group.group_picture
+            })
+
+    return jsonify(response)
+
+# =========================
+# ADD GROUP MEMBER
+# =========================
+
+@app.route(
+    "/add_group_member",
+    methods=["POST"]
+)
+def add_group_member():
+
+    data = request.json
+
+    member = GroupMember(
+
+        group_id=data["groupId"],
+
+        user_id=data["userId"]
+    )
+
+    db.session.add(member)
+
+    db.session.commit()
+
+    socketio.emit(
+        "group_update"
+    )
+
+    return jsonify({
+        "success": True
+    })
+
+# =========================
+# REMOVE GROUP MEMBER
+# =========================
+
+@app.route(
+    "/remove_group_member",
+    methods=["POST"]
+)
+def remove_group_member():
+
+    data = request.json
+
+    GroupMember.query.filter_by(
+
+        group_id=data["groupId"],
+
+        user_id=data["userId"]
+    ).delete()
+
+    db.session.commit()
+
+    socketio.emit(
+        "group_update"
+    )
+
+    return jsonify({
+        "success": True
+    })
 
 # =========================
 # DELETE GROUP
 # =========================
 
-@app.route("/delete_group/<group_id>", methods=["DELETE"])
+@app.route(
+    "/delete_group/<group_id>",
+    methods=["DELETE"]
+)
 def delete_group(group_id):
 
     Group.query.filter_by(
@@ -358,31 +523,30 @@ def delete_group(group_id):
     })
 
 # =========================
-# ADD GROUP MEMBER
+# UPDATE GROUP PICTURE
 # =========================
 
-@app.route("/add_group_member", methods=["POST"])
-def add_group_member():
+@app.route(
+    "/update_group_picture",
+    methods=["POST"]
+)
+def update_group_picture():
 
     data = request.json
 
-    existing = GroupMember.query.filter_by(
-        group_id=data["groupId"],
-        user_id=data["userId"]
+    group = Group.query.filter_by(
+        id=data["groupId"]
     ).first()
 
-    if existing:
+    if not group:
 
         return jsonify({
             "success": False
         })
 
-    member = GroupMember(
-        group_id=data["groupId"],
-        user_id=data["userId"]
-    )
-
-    db.session.add(member)
+    group.group_picture = data[
+        "groupPicture"
+    ]
 
     db.session.commit()
 
@@ -395,59 +559,34 @@ def add_group_member():
     })
 
 # =========================
-# GET MESSAGES
+# PROFILE
 # =========================
 
-@app.route("/messages/<room>")
-def messages(room):
-
-    messages = Message.query.filter_by(
-        room=room
-    ).all()
-
-    data = []
-
-    for msg in messages:
-
-        reactions = Reaction.query.filter_by(
-            message_id=msg.id
-        ).all()
-
-        reaction_list = []
-
-        for r in reactions:
-
-            reaction_list.append(r.emoji)
-
-        data.append({
-            "id": msg.id,
-            "sender": msg.sender,
-            "receiver": msg.receiver,
-            "room": msg.room,
-            "message": msg.message,
-            "type": msg.message_type,
-            "timestamp": str(msg.timestamp),
-            "status": msg.status,
-            "reactions": reaction_list
-        })
-
-    return jsonify(data)
-
-# =========================
-# REACTIONS
-# =========================
-
-@app.route("/react", methods=["POST"])
-def react():
+@app.route(
+    "/update_profile",
+    methods=["POST"]
+)
+def update_profile():
 
     data = request.json
 
-    reaction = Reaction(
-        message_id=data["messageId"],
-        emoji=data["emoji"]
-    )
+    user = User.query.filter_by(
+        username=data["username"]
+    ).first()
 
-    db.session.add(reaction)
+    if not user:
+
+        return jsonify({
+            "success": False
+        })
+
+    user.bio = data["bio"]
+
+    if "profilePicture" in data:
+
+        user.profile_picture = data[
+            "profilePicture"
+        ]
 
     db.session.commit()
 
@@ -456,31 +595,56 @@ def react():
     })
 
 # =========================
-# SEEN
+# MESSAGES
 # =========================
 
-@app.route("/seen/<message_id>", methods=["POST"])
-def seen(message_id):
+@app.route(
+    "/messages/<room>"
+)
+def get_messages(room):
 
-    msg = Message.query.get(
-        message_id
-    )
+    messages = Message.query.filter_by(
+        room=room
+    ).all()
 
-    if msg:
+    response = []
 
-        msg.status = "seen"
+    for msg in messages:
 
-        db.session.commit()
+        response.append({
 
-    return jsonify({
-        "success": True
-    })
+            "id":
+                msg.id,
+
+            "sender":
+                msg.sender,
+
+            "message":
+                msg.message,
+
+            "room":
+                msg.room,
+
+            "type":
+                msg.message_type,
+
+            "timestamp":
+                str(msg.timestamp),
+
+            "status":
+                msg.status
+        })
+
+    return jsonify(response)
 
 # =========================
-# FILE UPLOAD
+# UPLOAD
 # =========================
 
-@app.route("/upload", methods=["POST"])
+@app.route(
+    "/upload",
+    methods=["POST"]
+)
 def upload():
 
     file = request.files["file"]
@@ -500,11 +664,9 @@ def upload():
         "filename": filename
     })
 
-# =========================
-# FILES
-# =========================
-
-@app.route("/uploads/<filename>")
+@app.route(
+    "/uploads/<filename>"
+)
 def uploaded_file(filename):
 
     return send_from_directory(
@@ -513,27 +675,54 @@ def uploaded_file(filename):
     )
 
 # =========================
-# ONLINE STATUS
+# SOCKET EVENTS
 # =========================
 
-@socketio.on("user_online")
+@socketio.on(
+    "user_online"
+)
 def user_online(data):
 
-    online_users.add(
-        data["username"]
-    )
+    online_users[
+        request.sid
+    ] = data["username"]
 
     emit(
+
         "online_users",
-        list(online_users),
+
+        list(
+            online_users.values()
+        ),
+
         broadcast=True
     )
 
-# =========================
-# TYPING
-# =========================
+@socketio.on(
+    "disconnect"
+)
+def disconnect():
 
-@socketio.on("typing")
+    if request.sid in online_users:
+
+        del online_users[
+            request.sid
+        ]
+
+    emit(
+
+        "online_users",
+
+        list(
+            online_users.values()
+        ),
+
+        broadcast=True
+    )
+
+@socketio.on(
+    "typing"
+)
 def typing(data):
 
     emit(
@@ -542,38 +731,60 @@ def typing(data):
         broadcast=True
     )
 
-# =========================
-# SEND MESSAGE
-# =========================
+@socketio.on(
+    "send_message"
+)
+def send_message(data):
 
-@socketio.on("send_message")
-def handle_message(data):
+    message = Message(
 
-    msg = Message(
         sender=data["sender"],
-        receiver=str(data["receiver"]),
+
+        receiver=str(
+            data["receiver"]
+        ),
+
         room=data["room"],
+
         message=data["message"],
-        message_type=data["type"]
+
+        message_type=data["type"],
+
+        status="delivered"
     )
 
-    db.session.add(msg)
+    db.session.add(message)
 
     db.session.commit()
 
     emit(
+
         "receive_message",
+
         {
-            "id": msg.id,
-            "sender": msg.sender,
-            "receiver": msg.receiver,
-            "room": msg.room,
-            "message": msg.message,
-            "type": msg.message_type,
-            "timestamp": str(msg.timestamp),
-            "status": msg.status,
-            "reactions": []
+
+            "id":
+                message.id,
+
+            "sender":
+                message.sender,
+
+            "message":
+                message.message,
+
+            "room":
+                message.room,
+
+            "type":
+                message.message_type,
+
+            "timestamp":
+                str(message.timestamp),
+
+            "status":
+                message.status
         },
+
         broadcast=True
     )
 
@@ -583,8 +794,26 @@ def handle_message(data):
 
 if __name__ == "__main__":
 
+    print(
+        "SecureSphere v5.1 FINAL Running"
+    )
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
     socketio.run(
+
         app,
+
         host="0.0.0.0",
-        port=5000
+
+        port=port,
+
+        debug=True,
+
+        allow_unsafe_werkzeug=True
     )

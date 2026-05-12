@@ -11,7 +11,7 @@
     >
 
     <title>
-        SecureSphere v3
+        SecureSphere v5.1 FINAL
     </title>
 
     <link
@@ -27,15 +27,29 @@
 
 <body>
 
-    <!-- LOGIN -->
+    <!-- =========================
+    AUTH
+    ========================== -->
 
     <div class="auth-container">
 
         <div class="auth-box">
 
-            <h1>
-                SecureSphere v3
-            </h1>
+            <div class="auth-top">
+
+                <div class="auth-logo">
+                    🔐
+                </div>
+
+                <h1>
+                    SecureSphere
+                </h1>
+
+                <p class="auth-subtitle">
+                    Secure Realtime Messaging Platform
+                </p>
+
+            </div>
 
             <input
                 type="text"
@@ -43,11 +57,23 @@
                 placeholder="Username"
             >
 
-            <input
-                type="password"
-                id="password"
-                placeholder="Password"
-            >
+            <div class="password-wrapper">
+
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Password"
+                >
+
+                <button
+                    type="button"
+                    class="eye-btn"
+                    onclick="togglePassword()"
+                >
+                    👁
+                </button>
+
+            </div>
 
             <button onclick="signup()">
                 Signup
@@ -57,18 +83,46 @@
                 Login
             </button>
 
+            <div class="auth-footer">
+
+                <h3>
+                    Developer Info
+                </h3>
+
+                <p>
+                    Mohanakrishnan C
+                </p>
+
+                <p>
+                    Cybersecurity Student
+                </p>
+
+                <p>
+                    SecureSphere v5.1 FINAL
+                </p>
+
+                <p>
+                    End-to-End Encrypted Realtime Messaging
+                </p>
+
+            </div>
+
         </div>
 
     </div>
 
-    <!-- MAIN APP -->
+    <!-- =========================
+    MAIN APP
+    ========================== -->
 
     <div
         id="app"
         style="display:none;"
     >
 
-        <!-- SIDEBAR -->
+        <!-- =========================
+        SIDEBAR
+        ========================== -->
 
         <div class="sidebar">
 
@@ -80,58 +134,56 @@
                     A
                 </div>
 
-                <div id="profileName">
-                    User
+                <div class="profile-info">
+
+                    <div id="profileName">
+                        User
+                    </div>
+
+                    <div id="profileId">
+                        SSR-000000
+                    </div>
+
                 </div>
-
-                <div id="profileId">
-                    SSR-000000
-                </div>
-
-                <textarea
-                    id="bioInput"
-                    placeholder="Write bio..."
-                ></textarea>
-
-                <button onclick="saveBio()">
-                    Save Bio
-                </button>
-
-                <input
-                    type="file"
-                    id="profilePicInput"
-                    onchange="uploadProfilePic()"
-                >
-
-                <button onclick="toggleTheme()">
-                    🌙 Theme
-                </button>
 
             </div>
 
             <!-- NAVIGATION -->
 
-            <div class="nav-buttons">
+            <div class="nav-menu">
 
-                <button onclick="showSection('groups')">
-                    👥 Groups
+                <button
+                    id="groupsTab"
+                    class="nav-btn active-nav"
+                    onclick="showSection('groups')"
+                >
+                    👥
+                    <span>Groups</span>
                 </button>
 
-                <button onclick="showSection('dms')">
-                    💬 DMs
+                <button
+                    id="dmsTab"
+                    class="nav-btn"
+                    onclick="showSection('dms')"
+                >
+                    💬
+                    <span>DMs</span>
                 </button>
 
-                <button onclick="showSection('profile')">
-                    ⚙ Profile
-                </button>
-
-                <button onclick="askAI()">
-                    🤖 AI
+                <button
+                    id="profileTab"
+                    class="nav-btn"
+                    onclick="showSection('profile')"
+                >
+                    ⚙
+                    <span>Profile</span>
                 </button>
 
             </div>
 
-            <!-- GROUPS -->
+            <!-- =========================
+            GROUPS SECTION
+            ========================== -->
 
             <div
                 id="groupsSection"
@@ -144,9 +196,28 @@
                         Groups
                     </h3>
 
-                    <button onclick="createGroup()">
-                        +
-                    </button>
+                    <div
+                        style="
+                            display:flex;
+                            gap:8px;
+                        "
+                    >
+
+                        <button
+                            class="mini-btn"
+                            onclick="createGroup()"
+                        >
+                            +
+                        </button>
+
+                        <button
+                            class="mini-btn"
+                            onclick="changeGroupPicture()"
+                        >
+                            🖼
+                        </button>
+
+                    </div>
 
                 </div>
 
@@ -154,11 +225,14 @@
 
             </div>
 
-            <!-- DMS -->
+            <!-- =========================
+            DMS SECTION
+            ========================== -->
 
             <div
                 id="dmsSection"
                 class="section"
+                style="display:none;"
             >
 
                 <div class="section-header">
@@ -175,70 +249,129 @@
                     placeholder="Enter User ID"
                 >
 
-                <button onclick="sendFriendRequest()">
+                <button
+                    class="action-btn"
+                    onclick="sendFriendRequest()"
+                >
                     Add Friend
                 </button>
 
-                <h4>
-                    Friend Requests
+                <h4 class="section-title">
+                    Requests
                 </h4>
 
                 <div id="requestsList"></div>
 
-                <h4>
-                    Friends List
+                <h4 class="section-title">
+                    Friends
                 </h4>
 
                 <div id="friendsList"></div>
 
             </div>
 
-            <!-- PROFILE -->
+            <!-- =========================
+            PROFILE SECTION
+            ========================== -->
 
             <div
                 id="profileSection"
                 class="section"
+                style="display:none;"
             >
 
-                <h3>
-                    Account Settings
-                </h3>
+                <div class="section-header">
 
-                <p>
-                    Customize your SecureSphere profile.
-                </p>
+                    <h3>
+                        Profile Settings
+                    </h3>
+
+                </div>
+
+                <textarea
+                    id="bioInput"
+                    placeholder="Write your bio..."
+                ></textarea>
+
+                <button
+                    class="action-btn"
+                    onclick="saveBio()"
+                >
+                    Save Bio
+                </button>
+
+                <input
+                    type="file"
+                    id="profilePicInput"
+                    onchange="uploadProfilePic()"
+                >
+
+                <button
+                    class="action-btn"
+                    onclick="toggleTheme()"
+                >
+                    Toggle Theme
+                </button>
 
             </div>
 
         </div>
 
-        <!-- CHAT AREA -->
+        <!-- =========================
+        CHAT AREA
+        ========================== -->
 
         <div class="chat-container">
 
-            <!-- TOP BAR -->
+            <!-- HEADER -->
 
             <div class="chat-header">
 
-                <div id="chatTitle">
-                    SecureSphere
+                <div class="chat-user">
+
+                    <div
+                        id="chatAvatar"
+                        class="chat-avatar"
+                    >
+                        #
+                    </div>
+
+                    <div class="chat-info">
+
+                        <div id="chatTitle">
+                            SecureSphere
+                        </div>
+
+                        <div id="chatSubtitle">
+                            Select a chat
+                        </div>
+
+                    </div>
+
                 </div>
 
             </div>
 
-            <!-- MESSAGES -->
+            <!-- CHAT CONTENT -->
 
-            <div id="messages"></div>
+            <div class="chat-content">
+
+                <div id="messages"></div>
+
+            </div>
 
             <!-- TYPING -->
 
             <div id="typingIndicator"></div>
 
-            <!-- INPUT -->
+            <!-- MESSAGE BAR -->
 
             <div class="message-bar">
 
-                <button onclick="chooseFile()">
+                <button
+                    class="message-btn"
+                    onclick="chooseFile()"
+                >
                     📎
                 </button>
 
@@ -256,12 +389,16 @@
 
                 <button
                     id="recordBtn"
+                    class="message-btn"
                     onclick="toggleRecording()"
                 >
                     🎤
                 </button>
 
-                <button id="sendBtn">
+                <button
+                    id="sendBtn"
+                    class="send-btn"
+                >
                     ➤
                 </button>
 

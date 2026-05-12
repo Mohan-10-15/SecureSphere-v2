@@ -1,20 +1,30 @@
-const API_URL = "https://YOUR-RENDER-URL.onrender.com";
+/* =========================
+CONFIG
+========================= */
+
+const API_URL = "http://127.0.0.1:5000";
 
 const socket = io(API_URL);
 
 let currentUser = "";
 let currentUserId = "";
 
-let selectedUser = "";
-let currentGroupId = null;
-
 let currentRoom = "";
+let currentChatType = "";
+
+let selectedUser = "";
+let selectedGroup = "";
+
+let onlineUsers = [];
 
 let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 
-let onlineUsers = [];
+const messagesContainer =
+    document.getElementById(
+        "messages"
+    );
 
 /* =========================
 ENCRYPTION
@@ -22,7 +32,10 @@ ENCRYPTION
 
 function getRoomKey() {
 
-    return "SecureSphere_" + currentRoom;
+    return (
+        "SecureSphere_" +
+        currentRoom
+    );
 }
 
 function encryptMessage(message) {
@@ -33,14 +46,15 @@ function encryptMessage(message) {
     ).toString();
 }
 
-function decryptMessage(cipherText) {
+function decryptMessage(cipher) {
 
     try {
 
-        const bytes = CryptoJS.AES.decrypt(
-            cipherText,
-            getRoomKey()
-        );
+        const bytes =
+            CryptoJS.AES.decrypt(
+                cipher,
+                getRoomKey()
+            );
 
         return bytes.toString(
             CryptoJS.enc.Utf8
@@ -48,7 +62,7 @@ function decryptMessage(cipherText) {
 
     } catch {
 
-        return cipherText;
+        return cipher;
     }
 }
 
@@ -58,21 +72,62 @@ USER ID
 
 function generateUserId() {
 
-    return "SSR-" +
+    return (
+        "SSR-" +
         Math.floor(
-            100000 + Math.random() * 900000
-        );
+            100000 +
+            Math.random() * 900000
+        )
+    );
 }
 
 /* =========================
-DM ROOM
+ROOM
 ========================= */
 
-function generateDMRoom(user1, user2) {
+function generateDMRoom(
+    user1,
+    user2
+) {
 
     return [user1, user2]
         .sort()
         .join("_");
+}
+
+/* =========================
+CLEAR CHAT
+========================= */
+
+function clearChatState() {
+
+    currentRoom = "";
+
+    currentChatType = "";
+
+    selectedUser = "";
+
+    selectedGroup = "";
+
+    messagesContainer.innerHTML = "";
+
+    document.getElementById(
+        "typingIndicator"
+    ).innerHTML = "";
+
+    document.getElementById(
+        "chatTitle"
+    ).innerHTML =
+        "SecureSphere";
+
+    document.getElementById(
+        "chatSubtitle"
+    ).innerHTML =
+        "Select a chat";
+
+    document.getElementById(
+        "chatAvatar"
+    ).innerHTML = "#";
 }
 
 /* =========================
@@ -93,13 +148,12 @@ async function signup() {
 
     if (!username || !password) {
 
-        alert("Fill all fields");
+        alert(
+            "Fill all fields"
+        );
 
         return;
     }
-
-    const userId =
-        generateUserId();
 
     const response = await fetch(
         `${API_URL}/signup`,
@@ -112,9 +166,12 @@ async function signup() {
             },
 
             body: JSON.stringify({
+
                 username,
                 password,
-                userId
+
+                userId:
+                    generateUserId()
             })
         }
     );
@@ -161,77 +218,148 @@ async function login() {
     const data =
         await response.json();
 
-    if (data.success) {
+    if (!data.success) {
 
-        currentUser = username;
-
-        currentUserId =
-            data.userId;
-
-        document.querySelector(
-            ".auth-container"
-        ).style.display = "none";
-
-        document.getElementById(
-            "app"
-        ).style.display = "flex";
-
-        document.getElementById(
-            "profileName"
-        ).innerHTML =
-            currentUser;
-
-        document.getElementById(
-            "profileId"
-        ).innerHTML =
-            currentUserId;
-
-        document.getElementById(
-            "bioInput"
-        ).value =
-            data.bio || "";
-
-        if (data.profilePicture) {
-
-            document.getElementById(
-                "profileAvatar"
-            ).innerHTML = `
-                <img
-                    src="${data.profilePicture}"
-                    class="profile-image"
-                >
-            `;
-        } else {
-
-            document.getElementById(
-                "profileAvatar"
-            ).innerHTML =
-                currentUser[0].toUpperCase();
-        }
-
-        socket.emit(
-            "user_online",
-            {
-                username: currentUser
-            }
+        alert(
+            "Invalid login"
         );
 
-        Notification.requestPermission();
+        return;
+    }
 
-        loadFriends();
+    currentUser = username;
 
-        loadFriendRequests();
+    currentUserId =
+        data.userId;
 
-        loadGroups();
+    document.querySelector(
+        ".auth-container"
+    ).style.display = "none";
 
-    } else {
+    document.getElementById(
+        "app"
+    ).style.display = "flex";
 
-        alert("Invalid login");
+    document.getElementById(
+        "profileName"
+    ).innerHTML =
+        currentUser;
+
+    document.getElementById(
+        "profileId"
+    ).innerHTML =
+        currentUserId;
+
+    document.getElementById(
+        "bioInput"
+    ).value =
+        data.bio || "";
+
+    if (data.profilePicture) {
+
+        document.getElementById(
+            "profileAvatar"
+        ).innerHTML = `
+            <img
+                src="${data.profilePicture}?t=${Date.now()}"
+                class="profile-image"
+            >
+        `;
+    }
+
+    socket.emit(
+        "user_online",
+        {
+            username:
+                currentUser
+        }
+    );
+
+    Notification.requestPermission();
+
+    loadFriends();
+
+    loadFriendRequests();
+
+    loadGroups();
+}
+
+/* =========================
+NAVIGATION
+========================= */
+
+function resetNav() {
+
+    document
+        .querySelectorAll(".nav-btn")
+        .forEach(btn => {
+
+            btn.classList.remove(
+                "active-nav"
+            );
+        });
+}
+
+function showSection(section) {
+
+    document.getElementById(
+        "groupsSection"
+    ).style.display = "none";
+
+    document.getElementById(
+        "dmsSection"
+    ).style.display = "none";
+
+    document.getElementById(
+        "profileSection"
+    ).style.display = "none";
+
+    clearChatState();
+
+    resetNav();
+
+    if (section === "groups") {
+
+        document.getElementById(
+            "groupsSection"
+        ).style.display = "block";
+
+        document.getElementById(
+            "groupsTab"
+        ).classList.add(
+            "active-nav"
+        );
+    }
+
+    if (section === "dms") {
+
+        document.getElementById(
+            "dmsSection"
+        ).style.display = "block";
+
+        document.getElementById(
+            "dmsTab"
+        ).classList.add(
+            "active-nav"
+        );
+    }
+
+    if (section === "profile") {
+
+        document.getElementById(
+            "profileSection"
+        ).style.display = "block";
+
+        document.getElementById(
+            "profileTab"
+        ).classList.add(
+            "active-nav"
+        );
     }
 }
 
 /* =========================
-ONLINE USERS
+SOCKET EVENTS
 ========================= */
 
 socket.on(
@@ -243,63 +371,6 @@ socket.on(
         loadFriends();
     }
 );
-
-/* =========================
-ENTER KEY
-========================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        document
-            .getElementById("sendBtn")
-            .addEventListener(
-                "click",
-                sendMessage
-            );
-
-        document
-            .getElementById("messageInput")
-            .addEventListener(
-                "keydown",
-                function(event) {
-
-                    if (
-                        event.key === "Enter"
-                    ) {
-
-                        event.preventDefault();
-
-                        sendMessage();
-                    }
-                }
-            );
-
-        document
-            .getElementById("messageInput")
-            .addEventListener(
-                "input",
-                () => {
-
-                    socket.emit(
-                        "typing",
-                        {
-                            sender:
-                                currentUser,
-
-                            room:
-                                currentRoom
-                        }
-                    );
-                }
-            );
-    }
-);
-
-/* =========================
-SOCKETS
-========================= */
 
 socket.on(
     "friend_request_update",
@@ -328,6 +399,19 @@ socket.on(
 );
 
 socket.on(
+    "reaction_update",
+    () => {
+
+        if (currentRoom) {
+
+            loadMessages(
+                currentRoom
+            );
+        }
+    }
+);
+
+socket.on(
     "typing",
     data => {
 
@@ -344,13 +428,18 @@ socket.on(
             ).innerHTML =
                 `${data.sender} is typing...`;
 
-            setTimeout(() => {
+            clearTimeout(
+                window.typingTimeout
+            );
 
-                document.getElementById(
-                    "typingIndicator"
-                ).innerHTML = "";
+            window.typingTimeout =
+                setTimeout(() => {
 
-            }, 1000);
+                    document.getElementById(
+                        "typingIndicator"
+                    ).innerHTML = "";
+
+                }, 1400);
         }
     }
 );
@@ -363,7 +452,9 @@ socket.on(
             data.room === currentRoom
         ) {
 
-            addMessageToUI(data);
+            addMessageToUI(
+                data
+            );
         }
 
         if (
@@ -372,57 +463,80 @@ socket.on(
         ) {
 
             new Notification(
-                `Message from ${data.sender}`,
+                data.sender,
                 {
-                    body: "New message received"
+                    body:
+                        "New message"
                 }
             );
         }
     }
 );
-
 /* =========================
-SHOW SECTION
+INPUT EVENTS
 ========================= */
 
-function showSection(section) {
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-    document.getElementById(
-        "groupsSection"
-    ).style.display = "none";
+        document
+            .getElementById("sendBtn")
+            .addEventListener(
+                "click",
+                sendMessage
+            );
 
-    document.getElementById(
-        "dmsSection"
-    ).style.display = "none";
+        document
+            .getElementById("messageInput")
+            .addEventListener(
+                "keydown",
+                e => {
 
-    document.getElementById(
-        "profileSection"
-    ).style.display = "none";
+                    if (
+                        e.key === "Enter"
+                    ) {
 
-    if (section === "groups") {
+                        e.preventDefault();
 
-        document.getElementById(
-            "groupsSection"
-        ).style.display = "block";
+                        sendMessage();
+                    }
+                }
+            );
+
+        document
+            .getElementById("messageInput")
+            .addEventListener(
+                "input",
+                () => {
+
+                    if (!currentRoom)
+                        return;
+
+                    socket.emit(
+                        "typing",
+                        {
+                            sender:
+                                currentUser,
+
+                            room:
+                                currentRoom
+                        }
+                    );
+                }
+            );
+
+        document
+            .getElementById("fileInput")
+            .addEventListener(
+                "change",
+                uploadFile
+            );
     }
-
-    if (section === "dms") {
-
-        document.getElementById(
-            "dmsSection"
-        ).style.display = "block";
-    }
-
-    if (section === "profile") {
-
-        document.getElementById(
-            "profileSection"
-        ).style.display = "block";
-    }
-}
+);
 
 /* =========================
-FRIEND REQUEST
+FRIEND REQUESTS
 ========================= */
 
 async function sendFriendRequest() {
@@ -460,17 +574,18 @@ async function sendFriendRequest() {
 
     if (data.success) {
 
-        alert("Friend request sent");
+        alert(
+            "Friend request sent"
+        );
+    }
 
-        document.getElementById(
-            "friendIdInput"
-        ).value = "";
+    else {
+
+        alert(
+            "Cannot send request"
+        );
     }
 }
-
-/* =========================
-LOAD REQUESTS
-========================= */
 
 async function loadFriendRequests() {
 
@@ -482,16 +597,16 @@ async function loadFriendRequests() {
     const requests =
         await response.json();
 
-    const requestsList =
+    const container =
         document.getElementById(
             "requestsList"
         );
 
-    requestsList.innerHTML = "";
+    container.innerHTML = "";
 
     requests.forEach(req => {
 
-        requestsList.innerHTML += `
+        container.innerHTML += `
 
             <div class="user-item">
 
@@ -512,19 +627,16 @@ async function loadFriendRequests() {
                 </div>
 
                 <button
+                    class="mini-btn"
                     onclick="acceptFriend('${req.senderId}')"
                 >
-                    Accept
+                    ✓
                 </button>
 
             </div>
         `;
     });
 }
-
-/* =========================
-ACCEPT FRIEND
-========================= */
 
 async function acceptFriend(senderId) {
 
@@ -550,7 +662,7 @@ async function acceptFriend(senderId) {
 }
 
 /* =========================
-LOAD FRIENDS
+FRIENDS
 ========================= */
 
 async function loadFriends() {
@@ -563,27 +675,29 @@ async function loadFriends() {
     const friends =
         await response.json();
 
-    const friendsList =
+    const container =
         document.getElementById(
             "friendsList"
         );
 
-    friendsList.innerHTML = "";
+    container.innerHTML = "";
 
     friends.forEach(friend => {
 
-        const status =
+        const online =
             onlineUsers.includes(
                 friend.username
-            )
-                ? "🟢 Online"
-                : "⚫ Offline";
+            );
 
-        friendsList.innerHTML += `
+        container.innerHTML += `
 
             <div
                 class="user-item"
-                onclick="openDM('${friend.username}')"
+
+                onclick="openDM(
+                    '${friend.username}',
+                    '${friend.profilePicture || ""}'
+                )"
             >
 
                 <div class="user-avatar">
@@ -591,7 +705,11 @@ async function loadFriends() {
                     ${
                         friend.profilePicture
 
-                        ? `<img src="${friend.profilePicture}">`
+                        ? `
+                        <img
+                            src="${friend.profilePicture}?t=${Date.now()}"
+                        >
+                        `
 
                         : friend.username[0].toUpperCase()
                     }
@@ -605,7 +723,11 @@ async function loadFriends() {
                     </div>
 
                     <div class="user-status">
-                        ${status}
+                        ${
+                            online
+                            ? "🟢 Online"
+                            : "⚫ Offline"
+                        }
                     </div>
 
                     <div class="user-bio">
@@ -620,14 +742,21 @@ async function loadFriends() {
 }
 
 /* =========================
-OPEN DM
+DM
 ========================= */
 
-async function openDM(username) {
+async function openDM(
+    username,
+    picture
+) {
+
+    messagesContainer.innerHTML = "";
+
+    currentChatType = "dm";
+
+    selectedGroup = "";
 
     selectedUser = username;
-
-    currentGroupId = null;
 
     currentRoom =
         generateDMRoom(
@@ -640,7 +769,27 @@ async function openDM(username) {
     ).innerHTML =
         username;
 
-    loadMessages(currentRoom);
+    document.getElementById(
+        "chatSubtitle"
+    ).innerHTML =
+        "Direct Message";
+
+    document.getElementById(
+        "chatAvatar"
+    ).innerHTML = picture
+
+        ? `
+        <img
+            src="${picture}?t=${Date.now()}"
+            class="profile-image"
+        >
+        `
+
+        : username[0].toUpperCase();
+
+    loadMessages(
+        currentRoom
+    );
 }
 
 /* =========================
@@ -650,11 +799,13 @@ GROUPS
 async function createGroup() {
 
     const groupName =
-        prompt("Enter Group Name");
+        prompt(
+            "Enter Group Name"
+        );
 
     if (!groupName) return;
 
-    const response = await fetch(
+    await fetch(
         `${API_URL}/create_group`,
         {
             method: "POST",
@@ -673,19 +824,44 @@ async function createGroup() {
             })
         }
     );
-
-    const data =
-        await response.json();
-
-    renderGroup(
-        groupName,
-        data.groupId
-    );
 }
 
-/* =========================
-LOAD GROUPS
-========================= */
+async function openGroup(
+    groupName,
+    groupId
+) {
+
+    messagesContainer.innerHTML = "";
+
+    currentChatType = "group";
+
+    selectedUser = "";
+
+    selectedGroup = String(
+        groupId
+    );
+
+    currentRoom =
+        `group_${groupId}`;
+
+    document.getElementById(
+        "chatTitle"
+    ).innerHTML =
+        groupName;
+
+    document.getElementById(
+        "chatSubtitle"
+    ).innerHTML =
+        "Group Chat";
+
+    document.getElementById(
+        "chatAvatar"
+    ).innerHTML = "#";
+
+    loadMessages(
+        currentRoom
+    );
+}
 
 async function loadGroups() {
 
@@ -697,148 +873,163 @@ async function loadGroups() {
     const groups =
         await response.json();
 
-    const groupsList =
+    const container =
         document.getElementById(
             "groupsList"
         );
 
-    groupsList.innerHTML = "";
+    container.innerHTML = "";
 
     groups.forEach(group => {
 
-        renderGroup(
-            group.groupName,
-            group.groupId
-        );
+        container.innerHTML += `
+
+            <div class="user-item">
+
+                <div
+                    style="
+                        flex:1;
+                        display:flex;
+                        align-items:center;
+                        gap:12px;
+                    "
+
+                    onclick="openGroup(
+                        '${group.groupName}',
+                        '${group.groupId}'
+                    )"
+                >
+
+                    <div class="user-avatar">
+
+                        ${
+                            group.groupPicture
+
+                            ? `
+                            <img
+                                src="${group.groupPicture}"
+                            >
+                            `
+
+                            : "#"
+                        }
+
+                    </div>
+
+                    <div>
+
+                        <div class="user-name">
+                            ${group.groupName}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
     });
 }
 
 /* =========================
-RENDER GROUP
+GROUP PICTURE
 ========================= */
 
-function renderGroup(
-    groupName,
-    groupId
-) {
+async function changeGroupPicture() {
 
-    const groupsList =
-        document.getElementById(
-            "groupsList"
+    if (!selectedGroup) {
+
+        alert(
+            "Open a group first"
         );
 
-    groupsList.innerHTML += `
+        return;
+    }
 
-        <div class="user-item">
-
-            <div
-                onclick="openGroup('${groupName}', '${groupId}')"
-                style="
-                    flex:1;
-                    display:flex;
-                    align-items:center;
-                    gap:12px;
-                "
-            >
-
-                <div class="user-avatar">
-                    ${groupName[0].toUpperCase()}
-                </div>
-
-                <div class="user-name">
-                    ${groupName}
-                </div>
-
-            </div>
-
-            <button
-                onclick="addFriendToGroup('${groupId}')"
-            >
-                +
-            </button>
-
-            <button
-                onclick="deleteGroup('${groupId}')"
-            >
-                ✖
-            </button>
-
-        </div>
-    `;
-}
-
-/* =========================
-OPEN GROUP
-========================= */
-
-async function openGroup(
-    groupName,
-    groupId
-) {
-
-    selectedUser = "";
-
-    currentGroupId = groupId;
-
-    currentRoom =
-        `group_${groupId}`;
-
-    document.getElementById(
-        "chatTitle"
-    ).innerHTML =
-        `# ${groupName}`;
-
-    loadMessages(currentRoom);
-}
-
-/* =========================
-DELETE GROUP
-========================= */
-
-async function deleteGroup(groupId) {
-
-    await fetch(
-        `${API_URL}/delete_group/${groupId}`,
-        {
-            method: "DELETE"
-        }
-    );
-}
-
-/* =========================
-ADD FRIEND TO GROUP
-========================= */
-
-async function addFriendToGroup(groupId) {
-
-    const friendId =
-        prompt(
-            "Enter Friend User ID"
+    const input =
+        document.createElement(
+            "input"
         );
 
-    if (!friendId) return;
+    input.type = "file";
 
-    await fetch(
-        `${API_URL}/add_group_member`,
-        {
-            method: "POST",
+    input.accept = "image/*";
 
-            headers: {
-                "Content-Type":
-                    "application/json"
-            },
+    input.click();
 
-            body: JSON.stringify({
+    input.onchange = async () => {
 
-                groupId,
+        const file =
+            input.files[0];
 
-                userId:
-                    friendId
-            })
+        if (!file) return;
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "file",
+            file
+        );
+
+        const uploadResponse =
+            await fetch(
+                `${API_URL}/upload`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+        const uploadData =
+            await uploadResponse.json();
+
+        const imageUrl =
+            `${API_URL}/uploads/${uploadData.filename}?t=${Date.now()}`;
+
+        const updateResponse =
+            await fetch(
+                `${API_URL}/update_group_picture`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        groupId:
+                            selectedGroup,
+
+                        groupPicture:
+                            imageUrl
+                    })
+                }
+            );
+
+        const result =
+            await updateResponse.json();
+
+        if (result.success) {
+
+            alert(
+                "Group picture updated"
+            );
+
+            loadGroups();
+
+            document.getElementById(
+                "chatAvatar"
+            ).innerHTML = `
+                <img
+                    src="${imageUrl}"
+                    class="profile-image"
+                >
+            `;
         }
-    );
-
-    alert("Friend added");
+    };
 }
 
 /* =========================
@@ -852,31 +1043,38 @@ function sendMessage() {
             "messageInput"
         );
 
-    const message =
-        input.value;
+    const text =
+        input.value.trim();
 
-    if (
-        message.trim() === ""
-    ) return;
+    if (!text) return;
 
-    const encrypted =
-        encryptMessage(message);
+    if (!currentRoom) {
+
+        alert(
+            "Open a chat first"
+        );
+
+        return;
+    }
 
     socket.emit(
         "send_message",
         {
+
             sender:
                 currentUser,
 
             receiver:
                 selectedUser ||
-                currentGroupId,
+                selectedGroup,
 
             room:
                 currentRoom,
 
             message:
-                encrypted,
+                encryptMessage(
+                    text
+                ),
 
             type:
                 "text"
@@ -887,7 +1085,7 @@ function sendMessage() {
 }
 
 /* =========================
-LOAD MESSAGES
+MESSAGES
 ========================= */
 
 async function loadMessages(room) {
@@ -897,37 +1095,29 @@ async function loadMessages(room) {
             `${API_URL}/messages/${room}`
         );
 
-    const messagesData =
+    const data =
         await response.json();
 
-    const messages =
-        document.getElementById(
-            "messages"
+    messagesContainer.innerHTML = "";
+
+    data.forEach(msg => {
+
+        addMessageToUI(
+            msg
         );
-
-    messages.innerHTML = "";
-
-    messagesData.forEach(msg => {
-
-        addMessageToUI(msg);
     });
 }
 
-/* =========================
-MESSAGE UI
-========================= */
-
 function addMessageToUI(data) {
 
-    const messages =
-        document.getElementById(
-            "messages"
+    const div =
+        document.createElement(
+            "div"
         );
 
-    const div =
-        document.createElement("div");
-
-    div.classList.add("message");
+    div.classList.add(
+        "message"
+    );
 
     if (
         data.sender === currentUser
@@ -943,48 +1133,6 @@ function addMessageToUI(data) {
             data.message
         );
 
-    if (
-        data.type === "image"
-    ) {
-
-        content = `
-            <img
-                src="${data.message}"
-                class="chat-image"
-            >
-        `;
-    }
-
-    if (
-        data.type === "audio"
-    ) {
-
-        content = `
-            <audio controls>
-                <source src="${data.message}">
-            </audio>
-        `;
-    }
-
-    if (
-        data.type === "file"
-    ) {
-
-        content = `
-            <a
-                href="${data.message}"
-                target="_blank"
-            >
-                📎 File
-            </a>
-        `;
-    }
-
-    const reactions =
-        data.reactions
-            ? data.reactions.join(" ")
-            : "";
-
     div.innerHTML = `
 
         <div class="username">
@@ -996,105 +1144,40 @@ function addMessageToUI(data) {
         </div>
 
         <div class="timestamp">
-
             ${new Date(
-                data.timestamp
+                data.timestamp + "Z"
             ).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
+
+                hour: "2-digit",
+                minute: "2-digit",
+
+                hour12: true
             })}
-
-        </div>
-
-        <div class="status">
-
-            ${
-                data.status === "seen"
-                    ? "✓✓ Seen"
-                    : "✓ Sent"
-            }
-
-        </div>
-
-        <div class="reaction-bar">
-
-            <button onclick="reactMessage(${data.id}, '❤️')">
-                ❤️
-            </button>
-
-            <button onclick="reactMessage(${data.id}, '🔥')">
-                🔥
-            </button>
-
-            <button onclick="reactMessage(${data.id}, '😂')">
-                😂
-            </button>
-
-            <span>${reactions}</span>
-
         </div>
     `;
 
-    messages.appendChild(div);
-
-    messages.scrollTop =
-        messages.scrollHeight;
-}
-
-/* =========================
-REACTIONS
-========================= */
-
-async function reactMessage(
-    messageId,
-    emoji
-) {
-
-    await fetch(
-        `${API_URL}/react`,
-        {
-            method: "POST",
-
-            headers: {
-                "Content-Type":
-                    "application/json"
-            },
-
-            body: JSON.stringify({
-                messageId,
-                emoji
-            })
-        }
+    messagesContainer.appendChild(
+        div
     );
 
-    loadMessages(currentRoom);
+    requestAnimationFrame(() => {
+
+        messagesContainer.scrollTop =
+            messagesContainer.scrollHeight;
+
+    });
 }
 
 /* =========================
-FILES
+UPLOAD
 ========================= */
 
 function chooseFile() {
 
-    document
-        .getElementById(
-            "fileInput"
-        )
-        .click();
-}
-
-document
-    .getElementById(
+    document.getElementById(
         "fileInput"
-    )
-    .addEventListener(
-        "change",
-        uploadFile
-    );
-
-/* =========================
-UPLOAD FILE
-========================= */
+    ).click();
+}
 
 async function uploadFile() {
 
@@ -1126,26 +1209,16 @@ async function uploadFile() {
     const fileUrl =
         `${API_URL}/uploads/${data.filename}`;
 
-    let type = "file";
-
-    if (
-        file.type.startsWith(
-            "image/"
-        )
-    ) {
-
-        type = "image";
-    }
-
     socket.emit(
         "send_message",
         {
+
             sender:
                 currentUser,
 
             receiver:
                 selectedUser ||
-                currentGroupId,
+                selectedGroup,
 
             room:
                 currentRoom,
@@ -1153,112 +1226,14 @@ async function uploadFile() {
             message:
                 fileUrl,
 
-            type
+            type:
+                "file"
         }
     );
 }
 
 /* =========================
-VOICE RECORDING
-========================= */
-
-async function toggleRecording() {
-
-    const recordBtn =
-        document.getElementById(
-            "recordBtn"
-        );
-
-    if (!isRecording) {
-
-        const stream =
-            await navigator.mediaDevices.getUserMedia({
-                audio: true
-            });
-
-        mediaRecorder =
-            new MediaRecorder(stream);
-
-        audioChunks = [];
-
-        mediaRecorder.start();
-
-        isRecording = true;
-
-        recordBtn.innerHTML = "⏹";
-
-        mediaRecorder.ondataavailable =
-            e => {
-
-                audioChunks.push(e.data);
-            };
-
-    } else {
-
-        mediaRecorder.stop();
-
-        mediaRecorder.onstop =
-            async () => {
-
-                const blob =
-                    new Blob(audioChunks, {
-                        type: "audio/webm"
-                    });
-
-                const formData =
-                    new FormData();
-
-                formData.append(
-                    "file",
-                    blob,
-                    "voice.webm"
-                );
-
-                const response =
-                    await fetch(
-                        `${API_URL}/upload`,
-                        {
-                            method: "POST",
-                            body: formData
-                        }
-                    );
-
-                const data =
-                    await response.json();
-
-                const audioUrl =
-                    `${API_URL}/uploads/${data.filename}`;
-
-                socket.emit(
-                    "send_message",
-                    {
-                        sender:
-                            currentUser,
-
-                        receiver:
-                            selectedUser ||
-                            currentGroupId,
-
-                        room:
-                            currentRoom,
-
-                        message:
-                            audioUrl,
-
-                        type:
-                            "audio"
-                    }
-                );
-            };
-
-        isRecording = false;
-
-        recordBtn.innerHTML = "🎤";
-    }
-}
-
-/* =========================
-PROFILE PICTURE
+PROFILE
 ========================= */
 
 async function uploadProfilePic() {
@@ -1289,7 +1264,7 @@ async function uploadProfilePic() {
         await response.json();
 
     const imageUrl =
-        `${API_URL}/uploads/${data.filename}`;
+        `${API_URL}/uploads/${data.filename}?t=${Date.now()}`;
 
     document.getElementById(
         "profileAvatar"
@@ -1311,6 +1286,7 @@ async function uploadProfilePic() {
             },
 
             body: JSON.stringify({
+
                 username:
                     currentUser,
 
@@ -1326,16 +1302,7 @@ async function uploadProfilePic() {
     );
 }
 
-/* =========================
-SAVE BIO
-========================= */
-
 async function saveBio() {
-
-    const bio =
-        document.getElementById(
-            "bioInput"
-        ).value;
 
     await fetch(
         `${API_URL}/update_profile`,
@@ -1348,15 +1315,21 @@ async function saveBio() {
             },
 
             body: JSON.stringify({
+
                 username:
                     currentUser,
 
-                bio
+                bio:
+                    document.getElementById(
+                        "bioInput"
+                    ).value
             })
         }
     );
 
-    alert("Bio updated");
+    alert(
+        "Bio updated"
+    );
 }
 
 /* =========================
@@ -1371,37 +1344,318 @@ function toggleTheme() {
 }
 
 /* =========================
-AI
+PASSWORD
 ========================= */
 
-function askAI() {
+function togglePassword() {
 
-    const input =
-        prompt(
-            "Ask SecureAI"
+    const passwordInput =
+        document.getElementById(
+            "password"
         );
 
-    if (!input) return;
+    const eyeButton =
+        document.querySelector(
+            ".eye-btn"
+        );
 
-    addMessageToUI({
-        sender:
-            "SecureAI",
+    if (
+        passwordInput.type ===
+        "password"
+    ) {
 
-        message:
-            encryptMessage(
-                `AI Response to: ${input}`
-            ),
+        passwordInput.type =
+            "text";
 
-        type:
-            "text",
+        eyeButton.innerHTML =
+            "👁️‍🗨️";
 
-        timestamp:
-            new Date(),
+    } else {
 
-        status:
-            "seen",
+        passwordInput.type =
+            "password";
 
-        reactions:
-            []
+        eyeButton.innerHTML =
+            "👁";
+    }
+}
+/* =========================
+GROUP ACTIONS
+========================= */
+
+async function addFriendToGroup(
+    groupId
+) {
+
+    const friendId =
+        prompt(
+            "Enter Friend User ID"
+        );
+
+    if (!friendId) return;
+
+    const response = await fetch(
+        `${API_URL}/add_group_member`,
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+
+                groupId,
+
+                userId:
+                    friendId
+            })
+        }
+    );
+
+    const data =
+        await response.json();
+
+    if (data.success) {
+
+        alert(
+            "Friend added"
+        );
+
+    } else {
+
+        alert(
+            data.message
+        );
+    }
+}
+
+async function removeFriendFromGroup(
+    groupId
+) {
+
+    const friendId =
+        prompt(
+            "Enter Friend User ID"
+        );
+
+    if (!friendId) return;
+
+    await fetch(
+        `${API_URL}/remove_group_member`,
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+
+                groupId,
+
+                userId:
+                    friendId
+            })
+        }
+    );
+
+    alert(
+        "Friend removed"
+    );
+}
+
+async function removeGroup(
+    groupId
+) {
+
+    const confirmDelete =
+        confirm(
+            "Delete this group?"
+        );
+
+    if (!confirmDelete)
+        return;
+
+    await fetch(
+        `${API_URL}/delete_group/${groupId}`,
+        {
+            method: "DELETE"
+        }
+    );
+
+    clearChatState();
+
+    loadGroups();
+}
+/* =========================
+FIXED GROUP UI
+========================= */
+
+async function loadGroups() {
+
+    const response =
+        await fetch(
+            `${API_URL}/groups/${currentUserId}`
+        );
+
+    const groups =
+        await response.json();
+
+    const container =
+        document.getElementById(
+            "groupsList"
+        );
+
+    container.innerHTML = "";
+
+    groups.forEach(group => {
+
+        container.innerHTML += `
+
+            <div class="user-item">
+
+                <div
+                    style="
+                        flex:1;
+                        display:flex;
+                        align-items:center;
+                        gap:12px;
+                    "
+
+                    onclick="openGroup(
+                        '${group.groupName}',
+                        '${group.groupId}'
+                    )"
+                >
+
+                    <div class="user-avatar">
+
+                        ${
+                            group.groupPicture
+
+                            ? `
+                            <img
+                                src="${group.groupPicture}"
+                            >
+                            `
+
+                            : "#"
+                        }
+
+                    </div>
+
+                    <div>
+
+                        <div class="user-name">
+                            ${group.groupName}
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <button
+                    class="mini-btn"
+                    onclick="
+                        event.stopPropagation();
+                        addFriendToGroup('${group.groupId}')
+                    "
+                >
+                    +
+                </button>
+
+                <button
+                    class="mini-btn"
+                    onclick="
+                        event.stopPropagation();
+                        removeFriendFromGroup('${group.groupId}')
+                    "
+                >
+                    −
+                </button>
+
+                <button
+                    class="mini-btn"
+                    onclick="
+                        event.stopPropagation();
+                        removeGroup('${group.groupId}')
+                    "
+                >
+                    🗑
+                </button>
+
+            </div>
+        `;
     });
+}
+
+/* =========================
+FIXED AUTO SCROLL
+========================= */
+
+function addMessageToUI(data) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.classList.add(
+        "message"
+    );
+
+    if (
+        data.sender === currentUser
+    ) {
+
+        div.classList.add(
+            "my-message"
+        );
+    }
+
+    let content =
+        decryptMessage(
+            data.message
+        );
+
+    div.innerHTML = `
+
+        <div class="username">
+            ${data.sender}
+        </div>
+
+        <div>
+            ${content}
+        </div>
+
+        <div class="timestamp">
+            ${new Date(
+                data.timestamp + "Z"
+            ).toLocaleTimeString([], {
+
+                hour: "2-digit",
+                minute: "2-digit",
+
+                hour12: true
+            })}
+        </div>
+    `;
+
+    messagesContainer.appendChild(
+        div
+    );
+
+    const chatContent =
+    document.querySelector(
+        ".chat-content"
+    );
+
+requestAnimationFrame(() => {
+
+    chatContent.scrollTop =
+        chatContent.scrollHeight;
+});
 }
