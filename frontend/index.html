@@ -3,178 +3,90 @@
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>SecureSphere v2</title>
+    <title>
+        SecureSphere v3
+    </title>
 
-<link rel="stylesheet" href="style.css">
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
 </head>
 
 <body>
 
-<!-- AUTH -->
+    <!-- LOGIN -->
 
-<div class="auth-container">
+    <div class="auth-container">
 
-    <div class="auth-box">
+        <div class="auth-box">
 
-        <h1>SecureSphere</h1>
+            <h1>
+                SecureSphere v3
+            </h1>
 
-        <input
-            type="text"
-            id="username"
-            placeholder="Username"
-        >
+            <input
+                type="text"
+                id="username"
+                placeholder="Username"
+            >
 
-        <input
-            type="password"
-            id="password"
-            placeholder="Password"
-        >
+            <input
+                type="password"
+                id="password"
+                placeholder="Password"
+            >
 
-        <button onclick="signup()">
-            Signup
-        </button>
+            <button onclick="signup()">
+                Signup
+            </button>
 
-        <button onclick="login()">
-            Login
-        </button>
-
-    </div>
-
-</div>
-
-<!-- APP -->
-
-<div
-    class="app"
-    id="app"
-    style="display:none;"
->
-
-    <!-- NAV -->
-
-    <div class="nav-bar">
-
-        <button onclick="showSection('groups')">
-            👥
-        </button>
-
-        <button onclick="showSection('dms')">
-            💬
-        </button>
-
-        <button onclick="showSection('profile')">
-            👤
-        </button>
-
-    </div>
-
-    <!-- SIDEBAR -->
-
-    <div class="sidebar">
-
-        <!-- GROUPS -->
-
-        <div
-            class="section"
-            id="groupsSection"
-        >
-
-            <div class="section-header">
-
-                <h2>Groups</h2>
-
-                <button onclick="createGroup()">
-                    +
-                </button>
-
-            </div>
-
-            <div id="groupsList"></div>
+            <button onclick="login()">
+                Login
+            </button>
 
         </div>
 
-        <!-- DMS -->
+    </div>
 
-        <div
-            class="section"
-            id="dmsSection"
-            style="display:none;"
-        >
+    <!-- MAIN APP -->
 
-            <div class="section-header">
+    <div
+        id="app"
+        style="display:none;"
+    >
 
-                <h2>Friends</h2>
+        <!-- SIDEBAR -->
 
-            </div>
+        <div class="sidebar">
 
-            <!-- ADD FRIEND -->
-
-            <div class="friend-add">
-
-                <input
-                    type="text"
-                    id="friendIdInput"
-                    placeholder="Enter User ID"
-                >
-
-                <button onclick="sendFriendRequest()">
-                    Add
-                </button>
-
-            </div>
-
-            <!-- FRIEND REQUESTS -->
-
-            <div class="request-section">
-
-                <h3>Friend Requests</h3>
-
-                <div id="requestsList"></div>
-
-            </div>
-
-            <!-- FRIENDS -->
-
-            <div class="request-section">
-
-                <h3>Friends</h3>
-
-                <div id="friendsList"></div>
-
-            </div>
-
-        </div>
-
-        <!-- PROFILE -->
-
-        <div
-            class="section"
-            id="profileSection"
-            style="display:none;"
-        >
+            <!-- PROFILE -->
 
             <div class="profile-card">
 
-                <div
-                    class="avatar"
-                    id="profileAvatar"
-                >
-                    U
+                <div id="profileAvatar">
+                    A
                 </div>
 
-                <h2 id="profileName"></h2>
+                <div id="profileName">
+                    User
+                </div>
 
-                <p id="profileId"></p>
+                <div id="profileId">
+                    SSR-000000
+                </div>
 
                 <textarea
                     id="bioInput"
@@ -185,131 +97,182 @@
                     Save Bio
                 </button>
 
+                <input
+                    type="file"
+                    id="profilePicInput"
+                    onchange="uploadProfilePic()"
+                >
+
+                <button onclick="toggleTheme()">
+                    🌙 Theme
+                </button>
+
+            </div>
+
+            <!-- NAVIGATION -->
+
+            <div class="nav-buttons">
+
+                <button onclick="showSection('groups')">
+                    👥 Groups
+                </button>
+
+                <button onclick="showSection('dms')">
+                    💬 DMs
+                </button>
+
+                <button onclick="showSection('profile')">
+                    ⚙ Profile
+                </button>
+
+                <button onclick="askAI()">
+                    🤖 AI
+                </button>
+
+            </div>
+
+            <!-- GROUPS -->
+
+            <div
+                id="groupsSection"
+                class="section"
+            >
+
+                <div class="section-header">
+
+                    <h3>
+                        Groups
+                    </h3>
+
+                    <button onclick="createGroup()">
+                        +
+                    </button>
+
+                </div>
+
+                <div id="groupsList"></div>
+
+            </div>
+
+            <!-- DMS -->
+
+            <div
+                id="dmsSection"
+                class="section"
+            >
+
+                <div class="section-header">
+
+                    <h3>
+                        Friends
+                    </h3>
+
+                </div>
+
+                <input
+                    type="text"
+                    id="friendIdInput"
+                    placeholder="Enter User ID"
+                >
+
+                <button onclick="sendFriendRequest()">
+                    Add Friend
+                </button>
+
+                <h4>
+                    Friend Requests
+                </h4>
+
+                <div id="requestsList"></div>
+
+                <h4>
+                    Friends List
+                </h4>
+
+                <div id="friendsList"></div>
+
+            </div>
+
+            <!-- PROFILE -->
+
+            <div
+                id="profileSection"
+                class="section"
+            >
+
+                <h3>
+                    Account Settings
+                </h3>
+
+                <p>
+                    Customize your SecureSphere profile.
+                </p>
+
+            </div>
+
+        </div>
+
+        <!-- CHAT AREA -->
+
+        <div class="chat-container">
+
+            <!-- TOP BAR -->
+
+            <div class="chat-header">
+
+                <div id="chatTitle">
+                    SecureSphere
+                </div>
+
+            </div>
+
+            <!-- MESSAGES -->
+
+            <div id="messages"></div>
+
+            <!-- TYPING -->
+
+            <div id="typingIndicator"></div>
+
+            <!-- INPUT -->
+
+            <div class="message-bar">
+
+                <button onclick="chooseFile()">
+                    📎
+                </button>
+
+                <input
+                    type="file"
+                    id="fileInput"
+                    hidden
+                >
+
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Type message..."
+                >
+
+                <button
+                    id="recordBtn"
+                    onclick="toggleRecording()"
+                >
+                    🎤
+                </button>
+
+                <button id="sendBtn">
+                    ➤
+                </button>
+
             </div>
 
         </div>
 
     </div>
 
-    <!-- CHAT -->
-
-    <div class="chat-container">
-
-        <div class="chat-topbar">
-
-            <h3 id="chatTitle">
-                SecureSphere v2
-            </h3>
-
-        </div>
-
-        <div
-            class="messages"
-            id="messages"
-        ></div>
-
-        <div class="input-area">
-
-            <input
-                type="file"
-                id="fileInput"
-                hidden
-            >
-
-            <button
-                class="action-btn"
-                onclick="chooseFile()"
-            >
-                📎
-            </button>
-
-            <button
-                class="action-btn"
-                id="recordBtn"
-                onclick="toggleRecording()"
-            >
-                🎤
-            </button>
-
-            <input
-                type="text"
-                id="messageInput"
-                placeholder="Type message..."
-            >
-
-            <button
-                class="send-btn"
-                id="sendBtn"
-            >
-                Send
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-
-<!-- PROFILE MODAL -->
-
-<div
-    class="profile-modal"
-    id="profileModal"
-    style="display:none;"
->
-
-    <div class="profile-popup">
-
-        <div
-            class="avatar large-avatar"
-            id="modalAvatar"
-        >
-            U
-        </div>
-
-        <h2 id="modalName"></h2>
-
-        <p id="modalUserId"></p>
-
-        <button onclick="startDM()">
-            DM
-        </button>
-
-        <button onclick="blockUser()">
-            Block
-        </button>
-
-        <button onclick="restrictUser()">
-            Restrict
-        </button>
-
-        <button onclick="closeProfileModal()">
-            Close
-        </button>
-
-    </div>
-
-</div>
-
-<!-- MOBILE NAV -->
-
-<div class="mobile-nav">
-
-    <button onclick="showSection('groups')">
-        👥
-    </button>
-
-    <button onclick="showSection('dms')">
-        💬
-    </button>
-
-    <button onclick="showSection('profile')">
-        👤
-    </button>
-
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 
 </body>
+
 </html>

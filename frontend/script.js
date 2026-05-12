@@ -1,4 +1,4 @@
-const API_URL = "https://securesphere-v2.onrender.com";
+const API_URL = "https://YOUR-RENDER-URL.onrender.com";
 
 const socket = io(API_URL);
 
@@ -14,7 +14,47 @@ let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 
-/* USER ID */
+let onlineUsers = [];
+
+/* =========================
+ENCRYPTION
+========================= */
+
+function getRoomKey() {
+
+    return "SecureSphere_" + currentRoom;
+}
+
+function encryptMessage(message) {
+
+    return CryptoJS.AES.encrypt(
+        message,
+        getRoomKey()
+    ).toString();
+}
+
+function decryptMessage(cipherText) {
+
+    try {
+
+        const bytes = CryptoJS.AES.decrypt(
+            cipherText,
+            getRoomKey()
+        );
+
+        return bytes.toString(
+            CryptoJS.enc.Utf8
+        );
+
+    } catch {
+
+        return cipherText;
+    }
+}
+
+/* =========================
+USER ID
+========================= */
 
 function generateUserId() {
 
@@ -24,7 +64,9 @@ function generateUserId() {
         );
 }
 
-/* ROOM */
+/* =========================
+DM ROOM
+========================= */
 
 function generateDMRoom(user1, user2) {
 
@@ -33,7 +75,9 @@ function generateDMRoom(user1, user2) {
         .join("_");
 }
 
-/* SIGNUP */
+/* =========================
+SIGNUP
+========================= */
 
 async function signup() {
 
@@ -81,7 +125,9 @@ async function signup() {
     alert(data.message);
 }
 
-/* LOGIN */
+/* =========================
+LOGIN
+========================= */
 
 async function login() {
 
@@ -136,11 +182,6 @@ async function login() {
             currentUser;
 
         document.getElementById(
-            "profileAvatar"
-        ).innerHTML =
-            currentUser[0].toUpperCase();
-
-        document.getElementById(
             "profileId"
         ).innerHTML =
             currentUserId;
@@ -150,8 +191,37 @@ async function login() {
         ).value =
             data.bio || "";
 
+        if (data.profilePicture) {
+
+            document.getElementById(
+                "profileAvatar"
+            ).innerHTML = `
+                <img
+                    src="${data.profilePicture}"
+                    class="profile-image"
+                >
+            `;
+        } else {
+
+            document.getElementById(
+                "profileAvatar"
+            ).innerHTML =
+                currentUser[0].toUpperCase();
+        }
+
+        socket.emit(
+            "user_online",
+            {
+                username: currentUser
+            }
+        );
+
+        Notification.requestPermission();
+
         loadFriends();
+
         loadFriendRequests();
+
         loadGroups();
 
     } else {
@@ -160,7 +230,23 @@ async function login() {
     }
 }
 
-/* ENTER KEY */
+/* =========================
+ONLINE USERS
+========================= */
+
+socket.on(
+    "online_users",
+    users => {
+
+        onlineUsers = users;
+
+        loadFriends();
+    }
+);
+
+/* =========================
+ENTER KEY
+========================= */
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -189,10 +275,31 @@ document.addEventListener(
                     }
                 }
             );
+
+        document
+            .getElementById("messageInput")
+            .addEventListener(
+                "input",
+                () => {
+
+                    socket.emit(
+                        "typing",
+                        {
+                            sender:
+                                currentUser,
+
+                            room:
+                                currentRoom
+                        }
+                    );
+                }
+            );
     }
 );
 
-/* SOCKET */
+/* =========================
+SOCKETS
+========================= */
 
 socket.on(
     "friend_request_update",
@@ -206,9 +313,9 @@ socket.on(
     "friend_update",
     () => {
 
-        loadFriendRequests();
-
         loadFriends();
+
+        loadFriendRequests();
     }
 );
 
@@ -221,8 +328,36 @@ socket.on(
 );
 
 socket.on(
+    "typing",
+    data => {
+
+        if (
+
+            data.room === currentRoom &&
+
+            data.sender !== currentUser
+
+        ) {
+
+            document.getElementById(
+                "typingIndicator"
+            ).innerHTML =
+                `${data.sender} is typing...`;
+
+            setTimeout(() => {
+
+                document.getElementById(
+                    "typingIndicator"
+                ).innerHTML = "";
+
+            }, 1000);
+        }
+    }
+);
+
+socket.on(
     "receive_message",
-    (data) => {
+    data => {
 
         if (
             data.room === currentRoom
@@ -230,10 +365,25 @@ socket.on(
 
             addMessageToUI(data);
         }
+
+        if (
+            Notification.permission ===
+            "granted"
+        ) {
+
+            new Notification(
+                `Message from ${data.sender}`,
+                {
+                    body: "New message received"
+                }
+            );
+        }
     }
 );
 
-/* SECTION */
+/* =========================
+SHOW SECTION
+========================= */
 
 function showSection(section) {
 
@@ -271,7 +421,9 @@ function showSection(section) {
     }
 }
 
-/* FRIEND REQUEST */
+/* =========================
+FRIEND REQUEST
+========================= */
 
 async function sendFriendRequest() {
 
@@ -280,12 +432,7 @@ async function sendFriendRequest() {
             "friendIdInput"
         ).value;
 
-    if (!friendId) {
-
-        alert("Enter user ID");
-
-        return;
-    }
+    if (!friendId) return;
 
     const response = await fetch(
         `${API_URL}/send_request`,
@@ -313,9 +460,7 @@ async function sendFriendRequest() {
 
     if (data.success) {
 
-        alert(
-            "Friend request sent"
-        );
+        alert("Friend request sent");
 
         document.getElementById(
             "friendIdInput"
@@ -323,7 +468,9 @@ async function sendFriendRequest() {
     }
 }
 
-/* LOAD REQUESTS */
+/* =========================
+LOAD REQUESTS
+========================= */
 
 async function loadFriendRequests() {
 
@@ -366,13 +513,6 @@ async function loadFriendRequests() {
 
                 <button
                     onclick="acceptFriend('${req.senderId}')"
-                    style="
-                        background:#2563eb;
-                        border:none;
-                        color:white;
-                        padding:8px;
-                        border-radius:8px;
-                    "
                 >
                     Accept
                 </button>
@@ -382,11 +522,13 @@ async function loadFriendRequests() {
     });
 }
 
-/* ACCEPT */
+/* =========================
+ACCEPT FRIEND
+========================= */
 
 async function acceptFriend(senderId) {
 
-    const response = await fetch(
+    await fetch(
         `${API_URL}/accept_request`,
         {
             method: "POST",
@@ -405,19 +547,11 @@ async function acceptFriend(senderId) {
             })
         }
     );
-
-    const data =
-        await response.json();
-
-    if (data.success) {
-
-        loadFriendRequests();
-
-        loadFriends();
-    }
 }
 
-/* FRIENDS */
+/* =========================
+LOAD FRIENDS
+========================= */
 
 async function loadFriends() {
 
@@ -438,6 +572,13 @@ async function loadFriends() {
 
     friends.forEach(friend => {
 
+        const status =
+            onlineUsers.includes(
+                friend.username
+            )
+                ? "🟢 Online"
+                : "⚫ Offline";
+
         friendsList.innerHTML += `
 
             <div
@@ -446,13 +587,25 @@ async function loadFriends() {
             >
 
                 <div class="user-avatar">
-                    ${friend.username[0].toUpperCase()}
+
+                    ${
+                        friend.profilePicture
+
+                        ? `<img src="${friend.profilePicture}">`
+
+                        : friend.username[0].toUpperCase()
+                    }
+
                 </div>
 
                 <div>
 
                     <div class="user-name">
                         ${friend.username}
+                    </div>
+
+                    <div class="user-status">
+                        ${status}
                     </div>
 
                     <div class="user-bio">
@@ -466,7 +619,9 @@ async function loadFriends() {
     });
 }
 
-/* OPEN DM */
+/* =========================
+OPEN DM
+========================= */
 
 async function openDM(username) {
 
@@ -485,10 +640,12 @@ async function openDM(username) {
     ).innerHTML =
         username;
 
-    await loadMessages(currentRoom);
+    loadMessages(currentRoom);
 }
 
-/* CREATE GROUP */
+/* =========================
+GROUPS
+========================= */
 
 async function createGroup() {
 
@@ -526,7 +683,9 @@ async function createGroup() {
     );
 }
 
-/* LOAD GROUPS */
+/* =========================
+LOAD GROUPS
+========================= */
 
 async function loadGroups() {
 
@@ -554,7 +713,9 @@ async function loadGroups() {
     });
 }
 
-/* RENDER GROUP */
+/* =========================
+RENDER GROUP
+========================= */
 
 function renderGroup(
     groupName,
@@ -592,26 +753,12 @@ function renderGroup(
 
             <button
                 onclick="addFriendToGroup('${groupId}')"
-                style="
-                    background:#2563eb;
-                    border:none;
-                    color:white;
-                    padding:8px;
-                    border-radius:8px;
-                "
             >
                 +
             </button>
 
             <button
                 onclick="deleteGroup('${groupId}')"
-                style="
-                    background:red;
-                    border:none;
-                    color:white;
-                    padding:8px;
-                    border-radius:8px;
-                "
             >
                 ✖
             </button>
@@ -620,7 +767,9 @@ function renderGroup(
     `;
 }
 
-/* OPEN GROUP */
+/* =========================
+OPEN GROUP
+========================= */
 
 async function openGroup(
     groupName,
@@ -639,10 +788,12 @@ async function openGroup(
     ).innerHTML =
         `# ${groupName}`;
 
-    await loadMessages(currentRoom);
+    loadMessages(currentRoom);
 }
 
-/* DELETE GROUP */
+/* =========================
+DELETE GROUP
+========================= */
 
 async function deleteGroup(groupId) {
 
@@ -654,7 +805,9 @@ async function deleteGroup(groupId) {
     );
 }
 
-/* ADD FRIEND TO GROUP */
+/* =========================
+ADD FRIEND TO GROUP
+========================= */
 
 async function addFriendToGroup(groupId) {
 
@@ -685,12 +838,12 @@ async function addFriendToGroup(groupId) {
         }
     );
 
-    alert(
-        "Friend added"
-    );
+    alert("Friend added");
 }
 
-/* SEND */
+/* =========================
+SEND MESSAGE
+========================= */
 
 function sendMessage() {
 
@@ -704,15 +857,14 @@ function sendMessage() {
 
     if (
         message.trim() === ""
-    ) {
+    ) return;
 
-        return;
-    }
+    const encrypted =
+        encryptMessage(message);
 
     socket.emit(
         "send_message",
         {
-
             sender:
                 currentUser,
 
@@ -723,7 +875,8 @@ function sendMessage() {
             room:
                 currentRoom,
 
-            message,
+            message:
+                encrypted,
 
             type:
                 "text"
@@ -733,7 +886,9 @@ function sendMessage() {
     input.value = "";
 }
 
-/* LOAD MESSAGES */
+/* =========================
+LOAD MESSAGES
+========================= */
 
 async function loadMessages(room) {
 
@@ -758,7 +913,9 @@ async function loadMessages(room) {
     });
 }
 
-/* MESSAGE UI */
+/* =========================
+MESSAGE UI
+========================= */
 
 function addMessageToUI(data) {
 
@@ -770,9 +927,7 @@ function addMessageToUI(data) {
     const div =
         document.createElement("div");
 
-    div.classList.add(
-        "message"
-    );
+    div.classList.add("message");
 
     if (
         data.sender === currentUser
@@ -784,7 +939,9 @@ function addMessageToUI(data) {
     }
 
     let content =
-        data.message;
+        decryptMessage(
+            data.message
+        );
 
     if (
         data.type === "image"
@@ -823,6 +980,11 @@ function addMessageToUI(data) {
         `;
     }
 
+    const reactions =
+        data.reactions
+            ? data.reactions.join(" ")
+            : "";
+
     div.innerHTML = `
 
         <div class="username">
@@ -832,6 +994,45 @@ function addMessageToUI(data) {
         <div>
             ${content}
         </div>
+
+        <div class="timestamp">
+
+            ${new Date(
+                data.timestamp
+            ).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            })}
+
+        </div>
+
+        <div class="status">
+
+            ${
+                data.status === "seen"
+                    ? "✓✓ Seen"
+                    : "✓ Sent"
+            }
+
+        </div>
+
+        <div class="reaction-bar">
+
+            <button onclick="reactMessage(${data.id}, '❤️')">
+                ❤️
+            </button>
+
+            <button onclick="reactMessage(${data.id}, '🔥')">
+                🔥
+            </button>
+
+            <button onclick="reactMessage(${data.id}, '😂')">
+                😂
+            </button>
+
+            <span>${reactions}</span>
+
+        </div>
     `;
 
     messages.appendChild(div);
@@ -840,7 +1041,38 @@ function addMessageToUI(data) {
         messages.scrollHeight;
 }
 
-/* FILE */
+/* =========================
+REACTIONS
+========================= */
+
+async function reactMessage(
+    messageId,
+    emoji
+) {
+
+    await fetch(
+        `${API_URL}/react`,
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+                messageId,
+                emoji
+            })
+        }
+    );
+
+    loadMessages(currentRoom);
+}
+
+/* =========================
+FILES
+========================= */
 
 function chooseFile() {
 
@@ -851,8 +1083,6 @@ function chooseFile() {
         .click();
 }
 
-/* UPLOAD */
-
 document
     .getElementById(
         "fileInput"
@@ -861,6 +1091,10 @@ document
         "change",
         uploadFile
     );
+
+/* =========================
+UPLOAD FILE
+========================= */
 
 async function uploadFile() {
 
@@ -906,7 +1140,6 @@ async function uploadFile() {
     socket.emit(
         "send_message",
         {
-
             sender:
                 currentUser,
 
@@ -925,7 +1158,9 @@ async function uploadFile() {
     );
 }
 
-/* VOICE */
+/* =========================
+VOICE RECORDING
+========================= */
 
 async function toggleRecording() {
 
@@ -997,7 +1232,6 @@ async function toggleRecording() {
                 socket.emit(
                     "send_message",
                     {
-
                         sender:
                             currentUser,
 
@@ -1023,7 +1257,78 @@ async function toggleRecording() {
     }
 }
 
-/* BIO */
+/* =========================
+PROFILE PICTURE
+========================= */
+
+async function uploadProfilePic() {
+
+    const file =
+        document.getElementById(
+            "profilePicInput"
+        ).files[0];
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        "file",
+        file
+    );
+
+    const response =
+        await fetch(
+            `${API_URL}/upload`,
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+    const data =
+        await response.json();
+
+    const imageUrl =
+        `${API_URL}/uploads/${data.filename}`;
+
+    document.getElementById(
+        "profileAvatar"
+    ).innerHTML = `
+        <img
+            src="${imageUrl}"
+            class="profile-image"
+        >
+    `;
+
+    await fetch(
+        `${API_URL}/update_profile`,
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type":
+                    "application/json"
+            },
+
+            body: JSON.stringify({
+                username:
+                    currentUser,
+
+                bio:
+                    document.getElementById(
+                        "bioInput"
+                    ).value,
+
+                profilePicture:
+                    imageUrl
+            })
+        }
+    );
+}
+
+/* =========================
+SAVE BIO
+========================= */
 
 async function saveBio() {
 
@@ -1043,7 +1348,6 @@ async function saveBio() {
             },
 
             body: JSON.stringify({
-
                 username:
                     currentUser,
 
@@ -1053,4 +1357,51 @@ async function saveBio() {
     );
 
     alert("Bio updated");
+}
+
+/* =========================
+THEME
+========================= */
+
+function toggleTheme() {
+
+    document.body.classList.toggle(
+        "light-mode"
+    );
+}
+
+/* =========================
+AI
+========================= */
+
+function askAI() {
+
+    const input =
+        prompt(
+            "Ask SecureAI"
+        );
+
+    if (!input) return;
+
+    addMessageToUI({
+        sender:
+            "SecureAI",
+
+        message:
+            encryptMessage(
+                `AI Response to: ${input}`
+            ),
+
+        type:
+            "text",
+
+        timestamp:
+            new Date(),
+
+        status:
+            "seen",
+
+        reactions:
+            []
+    });
 }
