@@ -2,7 +2,7 @@
 CONFIG
 ========================= */
 
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = "https://secure-messeger.onrender.com";
 
 const socket = io(API_URL);
 
